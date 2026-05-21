@@ -2,204 +2,362 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тулпар: Точный Сканер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Сканер</title>
     
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+        /* Обнуление стилей для полноэкранного интерфейса */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body, html {
             margin: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .container {
+            padding: 0;
             width: 100%;
-            max-width: 420px;
-            background-color: #1e293b;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            box-sizing: border-box;
+            height: 100%;
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            color: #fff;
         }
 
-        h1 {
-            font-size: 1.25rem;
-            margin-top: 0;
-            margin-bottom: 8px;
-            color: #38bdf8;
-        }
-
-        p {
-            font-size: 0.85rem;
-            color: #94a3b8;
-            margin-top: 0;
-            margin-bottom: 20px;
+        /* Видеокамера на весь экран на заднем плане */
+        #camera-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
 
         #reader {
-            width: 100%;
+            width: 100% !important;
+            height: 100% !important;
             border: none !important;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: #0f172a;
         }
 
-        /* Кастомизация встроенных кнопки библиотеки */
-        #reader button {
-            background-color: #38bdf8;
-            color: #0f172a;
-            border: none;
-            padding: 12px 24px;
-            font-size: 0.95rem;
-            font-weight: bold;
-            border-radius: 8px;
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
+        /* Скрываем внутренние элементы стандартной библиотеки, создаем свои */
+        #reader__scan_region, #reader__dashboard {
+            display: none !important;
+        }
+
+        /* ИНТЕРФЕЙС ПОВЕРХ КАМЕРЫ */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none; /* Чтобы можно было кликать сквозь маску, если нужно */
+        }
+
+        /* Верхняя панель: Х и Название */
+        .top-bar {
+            padding: 50px 24px 20px 24px; /* Отступ сверху с учетом челки/выреза */
+            display: flex;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0));
+            pointer-events: auto;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            font-weight: 300;
             cursor: pointer;
-            margin: 12px 0;
-            transition: background-color 0.2s;
-        }
-        #reader button:hover {
-            background-color: #7dd3fc;
+            margin-right: 28px;
+            color: #fff;
         }
 
-        #result-box {
-            margin-top: 24px;
-            padding: 16px;
-            background-color: #0f172a;
-            border-radius: 12px;
-            border: 1px solid #334155;
+        .title {
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
         }
 
-        .label {
-            font-size: 0.8rem;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            font-weight: 600;
+        /* Центральная зона прицела (Розовые уголки) */
+        .scan-area-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
 
-        #bus-number {
-            font-size: 4.5rem;
-            font-weight: 900;
-            color: #4ade80;
-            margin: 8px 0;
-            line-height: 1;
-            letter-spacing: -1px;
-            text-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+        /* Затемнение вокруг рамки сканера */
+        .mask {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+            border-radius: 24px;
         }
 
-        #debug-info {
-            font-size: 0.75rem;
-            color: #475569;
-            word-break: break-all;
-            margin-top: 12px;
-            border-top: 1px dashed #334155;
-            padding-top: 8px;
+        /* Сами розовые уголки 1 в 1 как на скрине */
+        .corner-box {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+        }
+
+        .corner {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-color: #e91e63; /* Насыщенный розовый цвет */
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .top-left { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 20px; }
+        .top-right { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 20px; }
+        .bottom-left { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 20px; }
+        .bottom-right { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 20px; }
+
+        /* Нижняя шторка приложения */
+        .bottom-sheet {
+            background-color: #111111;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            padding: 12px 24px 34px 24px; /* Отступ снизу для безрамочных экранов */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        /* Маленький индикатор шторки сверху */
+        .handle {
+            width: 36px;
+            height: 4px;
+            background-color: #333;
+            border-radius: 2px;
+            margin-bottom: 16px;
+        }
+
+        /* Вывод результата */
+        .result-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        
+        .result-text span {
+            color: #e91e63;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        /* Сетка быстрых иконок (Globus, Финик, Добавить) */
+        .shortcuts {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 24px;
+        }
+
+        .shortcut-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .icon-circle {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background-color: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        /* Стилизация картинок-иконок */
+        .icon-circle img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .shortcut-label {
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        /* Самый нижний ряд кнопок (Галерея, Мой QR, Фонарик) */
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            pointer-events: auto;
+            padding: 0 4px;
+        }
+
+        .circle-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .pill-btn {
+            height: 52px;
+            padding: 0 28px;
+            border-radius: 26px;
+            background-color: rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 500;
+            gap: 8px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Тулпар • Сканер кода</h1>
-        <p>Автоматически извлекает бортовой номер автобуса</p>
-        
+    <div id="camera-wrapper">
         <div id="reader"></div>
+    </div>
 
-        <div id="result-box">
-            <div class="label">Код транспорта</div>
-            <div id="bus-number">---</div>
-            <div id="debug-info">Ожидание сканирования...</div>
+    <div class="overlay">
+        
+        <div class="top-bar">
+            <div class="close-btn">✕</div>
+            <div class="title">Сканер</div>
         </div>
+
+        <div class="scan-area-container">
+            <div class="mask"></div>
+            <div class="corner-box">
+                <div class="corner top-left"></div>
+                <div class="corner top-right"></div>
+                <div class="corner bottom-left"></div>
+                <div class="corner bottom-right"></div>
+            </div>
+        </div>
+
+        <div class="bottom-sheet">
+            <div class="handle"></div>
+            
+            <div class="result-text" id="status-display">
+                Наведите камеру на QR-код Тулпар
+            </div>
+
+            <div class="shortcuts">
+                <div class="shortcut-item">
+                    <div class="icon-circle">
+                        <img src="https://globus.kg/favicon.ico" alt="Globus" onerror="this.innerText='🍊'">
+                    </div>
+                    <div class="shortcut-label">Globus</div>
+                </div>
+                <div class="shortcut-item">
+                    <div class="icon-circle" style="background-color: #2b2b2b; color: #fff; font-size: 14px; font-weight: bold;">
+                        %
+                    </div>
+                    <div class="shortcut-label">Финик</div>
+                </div>
+                <div class="shortcut-item">
+                    <div class="icon-circle" style="color: #888; font-size: 20px;">+</div>
+                    <div class="shortcut-label">Добавить</div>
+                </div>
+            </div>
+
+            <div class="action-bar">
+                <div class="circle-btn">🖼️</div>
+                <div class="pill-btn">
+                    <span>📱</span> Мой QR
+                </div>
+                <div class="circle-btn" id="torch-btn">🔦</div>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        // Алгоритм разбора ссылки на основе реальных данных Тулпар / PayQR
+        // Функция очистки ссылки, которую мы вывели ранее
         function extractBusCode(rawUrl) {
-            // Если это не ссылка Тулпара, прерываем работу
-            if (!rawUrl.includes("qr.tulpar.kg")) {
-                return null;
-            }
+            if (!rawUrl.includes("qr.tulpar.kg")) return null;
 
-            // Находим всё, что идет строго после подстроки "qr.tulpar.kg"
             const parts = rawUrl.split("qr.tulpar.kg");
             if (parts.length < 2) return null;
 
-            const dataAfterDomain = parts[1]; // Получаем строчку типа: "10032971120212130..."
-
-            // Определяем, какой префикс длины используется в этой наклейке
+            const dataAfterDomain = parts[1];
             let prefix = "";
             if (dataAfterDomain.startsWith("1003")) prefix = "1003";
             else if (dataAfterDomain.startsWith("1004")) prefix = "1004";
 
             if (!prefix) return null;
 
-            // Отрезаем этот технический префикс
-            const withoutPrefix = dataAfterDomain.substring(prefix.length); // Остаётся: "29711202121..." или "3951202121..."
-
-            // Ищем индекс начала неизменяемого системного хвоста "1202121"
+            const withoutPrefix = dataAfterDomain.substring(prefix.length);
             const tailIndex = withoutPrefix.indexOf("1202121");
             if (tailIndex === -1) return null;
 
-            // Забираем всё, что находится ровно МЕЖДУ префиксом и системным хвостом
-            const busCode = withoutPrefix.substring(0, tailIndex);
-
-            return busCode;
+            return withoutPrefix.substring(0, tailIndex);
         }
 
         function onScanSuccess(decodedText) {
-            const debugDiv = document.getElementById('debug-info');
-            const resultDiv = document.getElementById('bus-number');
-
-            debugDiv.innerText = "QR обнаружен. Расшифровка...";
-
-            // Применяем логику очистки
+            const statusDisplay = document.getElementById('status-display');
             const busCode = extractBusCode(decodedText);
 
             if (busCode) {
-                resultDiv.innerText = busCode; // Выводим чистые 395, 1515, 2971 и т.д.
-                debugDiv.innerText = "Успешно распознано!";
+                // Выводим результат в стиле приложения банка
+                statusDisplay.innerHTML = `Код автобуса: <span>${busCode}</span>`;
                 
-                // Легкий виброотклик смартфона
                 if (navigator.vibrate) {
                     navigator.vibrate(150);
                 }
             } else {
-                resultDiv.innerText = "???";
-                debugDiv.innerText = "Ошибка: Неверный формат данных внутри QR.";
+                statusDisplay.innerHTML = "QR считан, но это не формат Тулпар";
             }
         }
 
-        function onScanFailure(error) {
-            // Пустой блок, чтобы библиотека не спамила в консоль каждую миллисекунду
-        }
-
-        // Настройка сканера
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", 
-            { 
-                fps: 15, // Скорость обработки кадров
-                qrbox: { width: 260, height: 260 }, // Рамка прицела
-                // Принудительно заставляем браузер брать заднюю 1х камеру без лишних вопросов
-                videoConstraints: {
-                    facingMode: { exact: "environment" }
-                },
-                rememberLastUsedCamera: true
-            },
-            /* verbose= */ false
-        );
+        // Автоматический запуск камеры при загрузке без всплывающих диалогов выбора
+        const html5QrCode = new Html5Qrcode("reader");
         
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        html5QrCode.start(
+            { facingMode: { exact: "environment" } }, // Жестко задняя основная камера
+            {
+                fps: 15,
+                qrbox: 260 // Размер области сканирования совпадает с нашими уголками
+            },
+            onScanSuccess
+        ).catch(err => {
+            console.log("Ошибка exact, пробуем мягкий запуск камеры...", err);
+            // Запасной запуск, если на девайсе жесткий режим вызовет ошибку
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: 260 },
+                onScanSuccess
+            );
+        });
     </script>
 </body>
 </html>
