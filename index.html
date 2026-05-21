@@ -46,18 +46,20 @@
             object-fit: cover !important;
         }
 
-        /* ЖЕСТКО ВЫРЕЗАЕМ СТАНДАРТНЫЙ БЕЛО-СЕРЫЙ ПРИЦЕЛ БИБЛИОТЕКИ И ЕЕ КНОПКИ */
+        /* ТОТАЛЬНОЕ УДАЛЕНИЕ ВНУТРЕННЕГО БЕЛОГО ПРИЦЕЛА И ХОЛСТА БИБЛИОТЕКИ */
         #reader__scan_region, 
         #reader__scan_region div,
+        #reader__scan_region canvas,
         #reader__dashboard, 
         #reader button {
             display: none !important;
+            opacity: 0 !important;
             border: none !important;
             background: none !important;
             box-shadow: none !important;
         }
 
-        /* КОНТЕЙНЕР ДЛЯ НАШЕГО ФИОЛЕТОВОГО ПРИЦЕЛА С РАЗРЫВАМИ (Сдвинут выше центра) */
+        /* КОНТЕЙНЕР ДЛЯ НАШЕГО РОЗОВОГО ПРИЦЕЛА С РАЗРЫВАМИ (Сдвинут выше центра) */
         .camera-aim-container {
             position: absolute;
             top: 40%;
@@ -66,15 +68,15 @@
             width: 260px;
             height: 260px;
             pointer-events: none;
-            z-index: 5; /* Поверх видеопотока */
+            z-index: 5; /* Гарантированно поверх видео */
         }
 
-        /* Создаем фиолетовые уголки с разрывами и скруглением */
+        /* Создаем розовые уголки с разрывами и скруглением */
         .purple-corner {
             position: absolute;
             width: 35px;
             height: 35px;
-            border-color: #e91e63; /* Фиолетовый цвет */
+            border-color: #e91e63; /* Твой розовый цвет */
             border-style: solid;
             border-width: 0;
         }
@@ -101,7 +103,6 @@
             display: block;
             object-fit: contain;
         }
-
 
         /* ОКНО 2: ЭКРАН ВЫВОДА РЕЗУЛЬТАТА */
         #result-window {
@@ -225,20 +226,54 @@
 
         function startCamera() {
             html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start(
-                { facingMode: { exact: "environment" } }, 
-                {
-                    fps: 15,
-                    qrbox: 260
-                },
-                onScanSuccess
-            ).catch(err => {
-                html5QrCode.start(
-                    { facingMode: "environment" },
-                    { fps: 15, qrbox: 260 },
-                    onScanSuccess
-                );
+
+            // Запрашиваем все доступные камеры устройства
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 0) {
+                    let targetCameraId = null;
+
+                    // Умный поиск основной камеры 1х (игнорируем wide/ультраширик)
+                    // Обычно основная камера идет первой под индексом 0 или содержит слово 'main' / 'back 0'
+                    const mainCamera = devices.find(device => 
+                        device.label.toLowerCase().includes('main') || 
+                        device.label.toLowerCase().includes('back 0')
+                    );
+
+                    if (mainCamera) {
+                        targetCameraId = mainCamera.id;
+                    } else {
+                        // Если хитрых меток нет, берем самую первую заднюю камеру из списка
+                        const backCameras = devices.filter(device => device.label.toLowerCase().includes('back'));
+                        targetCameraId = backCameras.length > 0 ? backCameras[0].id : devices[0].id;
+                    }
+
+                    // Запуск выбранной камеры по её ID
+                    html5QrCode.start(
+                        targetCameraId,
+                        {
+                            fps: 15,
+                            qrbox: 260
+                        },
+                        onScanSuccess
+                    ).catch(err => {
+                        // Резервный мягкий запуск, если по ID не дало доступ
+                        fallbackStart();
+                    });
+
+                } else {
+                    fallbackStart();
+                }
+            }).catch(err => {
+                fallbackStart();
             });
+        }
+
+        function fallbackStart() {
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: 260 },
+                onScanSuccess
+            );
         }
 
         window.addEventListener('load', startCamera);
