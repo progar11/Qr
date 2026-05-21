@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Бишкек: Сканер Цифр</title>
+    <title>Тулпар: Точный Сканер</title>
     
-    <!-- Подключаем библиотеку распознавания текста (OCR) -->
-    <script src="https://unpkg.com/tesseract.js@v4.0.1/dist/tesseract.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
+            background-color: #0f172a;
+            color: #f8fafc;
             margin: 0;
-            padding: 20px;
+            padding: 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -23,212 +22,184 @@
             box-sizing: border-box;
         }
 
-        h1 {
-            font-size: 1.3rem;
-            margin-bottom: 5px;
-            color: #2196f3;
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
             text-align: center;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #38bdf8;
         }
 
         p {
-            font-size: 0.9rem;
-            color: #888;
+            font-size: 0.85rem;
+            color: #94a3b8;
             margin-top: 0;
             margin-bottom: 20px;
-            text-align: center;
         }
 
-        .video-container {
-            position: relative;
+        #reader {
             width: 100%;
-            max-width: 400px;
-            aspect-ratio: 4 / 3;
-            border: 2px solid #333;
+            border: none !important;
             border-radius: 12px;
             overflow: hidden;
-            background-color: #000;
+            background-color: #0f172a;
         }
 
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* Рамка прицела для цифр */
-        .scan-region {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60%;
-            height: 25%;
-            border: 3px solid #2196f3;
+        /* Кастомизация встроенных кнопки библиотеки */
+        #reader button {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 12px 24px;
+            font-size: 0.95rem;
+            font-weight: bold;
             border-radius: 8px;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
+            cursor: pointer;
+            margin: 12px 0;
+            transition: background-color 0.2s;
+        }
+        #reader button:hover {
+            background-color: #7dd3fc;
         }
 
-        #result-container {
-            margin-top: 25px;
-            text-align: center;
-            width: 100%;
-            max-width: 400px;
+        #result-box {
+            margin-top: 24px;
+            padding: 16px;
+            background-color: #0f172a;
+            border-radius: 12px;
+            border: 1px solid #334155;
         }
 
         .label {
-            font-size: 1rem;
-            color: #aaaaaa;
+            font-size: 0.8rem;
+            color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
+            font-weight: 600;
         }
 
         #bus-number {
-            font-size: 4rem;
+            font-size: 4.5rem;
             font-weight: 900;
-            color: #2196f3;
-            margin: 10px 0;
-            text-shadow: 0 0 20px rgba(33, 150, 243, 0.3);
+            color: #4ade80;
+            margin: 8px 0;
+            line-height: 1;
+            letter-spacing: -1px;
+            text-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
         }
 
-        #status {
-            font-size: 0.85rem;
-            color: #e0e0e0;
-            background: #1e1e1e;
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
-        }
-
-        /* Скрытый холст для обработки кадров */
-        canvas {
-            display: none;
+        #debug-info {
+            font-size: 0.75rem;
+            color: #475569;
+            word-break: break-all;
+            margin-top: 12px;
+            border-top: 1px dashed #334155;
+            padding-top: 8px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Сканер транспорта по цифрам</h1>
-    <p>Наведи синюю рамку строго на напечатанные цифры</p>
-    
-    <div class="video-container">
-        <video id="webcam" autoplay playsinline></video>
-        <div class="scan-region"></div>
-    </div>
+    <div class="container">
+        <h1>Тулпар • Сканер кода</h1>
+        <p>Автоматически извлекает бортовой номер автобуса</p>
+        
+        <div id="reader"></div>
 
-    <div id="result-container">
-        <div class="label">Код автобуса:</div>
-        <div id="bus-number">---</div>
-        <div id="status">Инициализация камеры...</div>
+        <div id="result-box">
+            <div class="label">Код транспорта</div>
+            <div id="bus-number">---</div>
+            <div id="debug-info">Ожидание сканирования...</div>
+        </div>
     </div>
-
-    <canvas id="capture-canvas"></canvas>
 
     <script>
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('capture-canvas');
-        const statusDiv = document.getElementById('status');
-        const resultDiv = document.getElementById('bus-number');
-        let isProcessing = false;
+        // Алгоритм разбора ссылки на основе реальных данных Тулпар / PayQR
+        function extractBusCode(rawUrl) {
+            // Если это не ссылка Тулпара, прерываем работу
+            if (!rawUrl.includes("qr.tulpar.kg")) {
+                return null;
+            }
 
-        // 1. АВТОМАТИЧЕСКИЙ ЗАПУСК ЗАДНЕЙ КАМЕРЫ (Без выбора устройств)
-        async function startCamera() {
-            try {
-                const constraints = {
-                    video: {
-                        // Режим "environment" заставляет систему брать основную заднюю камеру
-                        facingMode: { exact: "environment" },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    },
-                    audio: false
-                };
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-                statusDiv.innerText = "Ищем цифры в рамке...";
-                
-                // Запускаем цикл анализа кадров
-                video.addEventListener('play', () => {
-                    setInterval(captureAndRecognize, 800); // Анализ каждые 0.8 секунды
-                });
+            // Находим всё, что идет строго после подстроки "qr.tulpar.kg"
+            const parts = rawUrl.split("qr.tulpar.kg");
+            if (parts.length < 2) return null;
 
-            } catch (err) {
-                console.log("Ошибка жесткого поиска задней камеры, пробуем мягкий режим...", err);
-                // На случай если на каком-то специфическом девайсе "exact" вызовет ошибку
-                try {
-                    const fallbackStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" }
-                    });
-                    video.srcObject = fallbackStream;
-                    statusDiv.innerText = "Ищем цифры в рамке...";
-                } catch (fallbackErr) {
-                    statusDiv.innerText = "Ошибка доступа к задней камере.";
+            const dataAfterDomain = parts[1]; // Получаем строчку типа: "10032971120212130..."
+
+            // Определяем, какой префикс длины используется в этой наклейке
+            let prefix = "";
+            if (dataAfterDomain.startsWith("1003")) prefix = "1003";
+            else if (dataAfterDomain.startsWith("1004")) prefix = "1004";
+
+            if (!prefix) return null;
+
+            // Отрезаем этот технический префикс
+            const withoutPrefix = dataAfterDomain.substring(prefix.length); // Остаётся: "29711202121..." или "3951202121..."
+
+            // Ищем индекс начала неизменяемого системного хвоста "1202121"
+            const tailIndex = withoutPrefix.indexOf("1202121");
+            if (tailIndex === -1) return null;
+
+            // Забираем всё, что находится ровно МЕЖДУ префиксом и системным хвостом
+            const busCode = withoutPrefix.substring(0, tailIndex);
+
+            return busCode;
+        }
+
+        function onScanSuccess(decodedText) {
+            const debugDiv = document.getElementById('debug-info');
+            const resultDiv = document.getElementById('bus-number');
+
+            debugDiv.innerText = "QR обнаружен. Расшифровка...";
+
+            // Применяем логику очистки
+            const busCode = extractBusCode(decodedText);
+
+            if (busCode) {
+                resultDiv.innerText = busCode; // Выводим чистые 395, 1515, 2971 и т.д.
+                debugDiv.innerText = "Успешно распознано!";
+                
+                // Легкий виброотклик смартфона
+                if (navigator.vibrate) {
+                    navigator.vibrate(150);
                 }
+            } else {
+                resultDiv.innerText = "???";
+                debugDiv.innerText = "Ошибка: Неверный формат данных внутри QR.";
             }
         }
 
-        // 2. ОБРАБОТКА КАДРА И РАСПОЗНАВАНИЕ ЦИФР
-        async function captureAndRecognize() {
-            if (isProcessing) return; // Если прошлый кадр еще обрабатывается — пропускаем
-            isProcessing = true;
-
-            const ctx = canvas.getContext('2d');
-            
-            // Задаем размеры холста под размер видео
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            if (canvas.width === 0 || canvas.height === 0) {
-                isProcessing = false;
-                return;
-            }
-
-            // Вырезаем только ту область, которая находится внутри синей рамки прицела
-            // Это жестко повышает точность распознавания и скорость
-            const clipWidth = canvas.width * 0.6;
-            const clipHeight = canvas.height * 0.25;
-            const clipX = (canvas.width - clipWidth) / 2;
-            const clipY = (canvas.height - clipHeight) / 2;
-
-            // Настраиваем временный холст только под область прицела
-            canvas.width = clipWidth;
-            canvas.height = clipHeight;
-            
-            ctx.drawImage(video, clipX, clipY, clipWidth, clipHeight, 0, 0, clipWidth, clipHeight);
-
-            statusDiv.innerText = "Сканирую текст...";
-
-            // Отправляем картинку в Tesseract OCR
-            Tesseract.recognize(
-                canvas,
-                'eng', // Используем английский датасет, так как нам нужны только стандартные арабские цифры
-                {
-                    // Указываем искать ТОЛЬКО цифры, чтобы исключить мусор и буквы
-                    tessedit_char_whitelist: '0123456789'
-                }
-            ).then(({ data: { text } }) => {
-                // Очищаем результат от случайных пробелов и переносов строк
-                const cleanText = text.replace(/[^0-9]/g, '');
-
-                // Код автобуса обычно состоит из 3-4 цифр
-                if (cleanText.length >= 3 && cleanText.length <= 5) {
-                    resultDiv.innerText = cleanText;
-                    statusDiv.innerText = "Успешно распознано!";
-                    
-                    if (navigator.vibrate) navigator.vibrate(150);
-                } else {
-                    statusDiv.innerText = "Наведите точнее на цифры...";
-                }
-                isProcessing = false;
-            }).catch(err => {
-                console.error(err);
-                isProcessing = false;
-            });
+        function onScanFailure(error) {
+            // Пустой блок, чтобы библиотека не спамила в консоль каждую миллисекунду
         }
 
-        // Запуск при загрузке страницы
-        window.addEventListener('load', startCamera);
+        // Настройка сканера
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", 
+            { 
+                fps: 15, // Скорость обработки кадров
+                qrbox: { width: 260, height: 260 }, // Рамка прицела
+                // Принудительно заставляем браузер брать заднюю 1х камеру без лишних вопросов
+                videoConstraints: {
+                    facingMode: { exact: "environment" }
+                },
+                rememberLastUsedCamera: true
+            },
+            /* verbose= */ false
+        );
+        
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
 </body>
 </html>
