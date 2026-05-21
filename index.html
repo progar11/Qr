@@ -46,7 +46,7 @@
             object-fit: cover !important;
         }
 
-        /* ТОТАЛЬНОЕ УДАЛЕНИЕ ВНУТРЕННЕГО БЕЛОГО ПРИЦЕЛА И ХОЛСТА БИБЛИОТЕКИ */
+        /* Полностью зачищаем любые возможные элементы интерфейса библиотеки */
         #reader__scan_region, 
         #reader__scan_region div,
         #reader__scan_region canvas,
@@ -59,7 +59,7 @@
             box-shadow: none !important;
         }
 
-        /* КОНТЕЙНЕР ДЛЯ НАШЕГО РОЗОВОГО ПРИЦЕЛА С РАЗРЫВАМИ (Сдвинут выше центра) */
+        /* НАШ СОБСТВЕННЫЙ РОЗОВЫЙ ПРИЦЕЛ С РАЗРЫВАМИ (Сдвинут выше центра) */
         .camera-aim-container {
             position: absolute;
             top: 40%;
@@ -68,7 +68,7 @@
             width: 260px;
             height: 260px;
             pointer-events: none;
-            z-index: 5; /* Гарантированно поверх видео */
+            z-index: 999; /* Выносим на самый верхний слой */
         }
 
         /* Создаем розовые уголки с разрывами и скруглением */
@@ -76,7 +76,7 @@
             position: absolute;
             width: 35px;
             height: 35px;
-            border-color: #e91e63; /* Твой розовый цвет */
+            border-color: #e91e63; /* Розовый цвет */
             border-style: solid;
             border-width: 0;
         }
@@ -111,7 +111,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 10;
+            z-index: 1000;
             background-color: #0f172a;
             display: none; 
             flex-direction: column;
@@ -227,13 +227,19 @@
         function startCamera() {
             html5QrCode = new Html5Qrcode("reader");
 
-            // Запрашиваем все доступные камеры устройства
+            // Функция, которая отключает прорисовку белого прицела самой библиотеки
+            const qrboxFunction = function(viewfinderWidth, viewfinderHeight) {
+                return {
+                    width: viewfinderWidth,
+                    height: viewfinderHeight
+                };
+            }
+
             Html5Qrcode.getCameras().then(devices => {
                 if (devices && devices.length > 0) {
                     let targetCameraId = null;
 
-                    // Умный поиск основной камеры 1х (игнорируем wide/ультраширик)
-                    // Обычно основная камера идет первой под индексом 0 или содержит слово 'main' / 'back 0'
+                    // Поиск камеры 1х (игнорируем ультраширокий объектив)
                     const mainCamera = devices.find(device => 
                         device.label.toLowerCase().includes('main') || 
                         device.label.toLowerCase().includes('back 0')
@@ -242,36 +248,33 @@
                     if (mainCamera) {
                         targetCameraId = mainCamera.id;
                     } else {
-                        // Если хитрых меток нет, берем самую первую заднюю камеру из списка
                         const backCameras = devices.filter(device => device.label.toLowerCase().includes('back'));
                         targetCameraId = backCameras.length > 0 ? backCameras[0].id : devices[0].id;
                     }
 
-                    // Запуск выбранной камеры по её ID
                     html5QrCode.start(
                         targetCameraId,
                         {
                             fps: 15,
-                            qrbox: 260
+                            qrbox: qrboxFunction // Передаем функцию полного экрана вместо фиксированного размера квадрата
                         },
                         onScanSuccess
                     ).catch(err => {
-                        // Резервный мягкий запуск, если по ID не дало доступ
-                        fallbackStart();
+                        fallbackStart(qrboxFunction);
                     });
 
                 } else {
-                    fallbackStart();
+                    fallbackStart(qrboxFunction);
                 }
             }).catch(err => {
-                fallbackStart();
+                fallbackStart(qrboxFunction);
             });
         }
 
-        function fallbackStart() {
+        function fallbackStart(qrboxFn) {
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 15, qrbox: 260 },
+                { fps: 15, qrbox: qrboxFn },
                 onScanSuccess
             );
         }
