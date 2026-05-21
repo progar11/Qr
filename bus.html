@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бишкек: Сканер Автобусов</title>
+    
+    <!-- Подключаем библиотеку сканера QR-кодов -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #00e676;
+            text-align: center;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            border: 2px solid #333 !important;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #1e1e1e;
+        }
+
+        /* Стилизация внутренней разметки библиотеки */
+        #reader button {
+            background-color: #00e676;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        #result-container {
+            margin-top: 25px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .label {
+            font-size: 1rem;
+            color: #aaaaaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #bus-number {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #00e676;
+            margin: 10px 0;
+            text-shadow: 0 0 20px rgba(0, 230, 118, 0.3);
+        }
+
+        #raw-link {
+            font-size: 0.8rem;
+            color: #666666;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Сканер транспорта Бишкека</h1>
+    
+    <!-- Область, где будет отображаться камера -->
+    <div id="reader"></div>
+
+    <!-- Область вывода результата -->
+    <div id="result-container">
+        <div class="label">Код автобуса:</div>
+        <div id="bus-number">---</div>
+        <div id="raw-link">Ожидание сканирования...</div>
+    </div>
+
+    <script>
+        function onScanSuccess(decodedText, decodedResult) {
+            // Отображаем исходную ссылку для контроля
+            document.getElementById('raw-link').innerText = "Ссылка: " + decodedText;
+
+            // Регулярное выражение: ищет группу цифр в самом конце строки/ссылки
+            const match = decodedText.match(/(\d+)\/?$/);
+
+            if (match && match[1]) {
+                const busCode = match[1];
+                
+                // Выводим только цифры на экран
+                document.getElementById('bus-number').innerText = busCode;
+                
+                // Опционально: короткая вибрация телефона при успешном сканировании
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
+            } else {
+                document.getElementById('bus-number').innerText = "???";
+                document.getElementById('raw-link').innerText = "QR считан, но код автобуса не найден.";
+            }
+        }
+
+        function onScanFailure(error) {
+            // Сюда код заходит постоянно, пока ищет QR в кадре. Оставляем пустым, чтобы не спамить в консоль.
+        }
+
+        // Инициализация сканера
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", 
+            { 
+                fps: 10,           // Частота кадров в секунду
+                qrbox: { width: 250, height: 250 }, // Размер рамки прицела
+                rememberLastUsedCamera: true // Запоминать заднюю камеру
+            },
+            /* verbose= */ false
+        );
+        
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    </script>
+</body>
+</html>
