@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тулпар: Кастомный Сканер</title>
+    <title>Тулпар: Точный Сканер</title>
     
     <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -46,50 +46,57 @@
             object-fit: cover !important;
         }
 
-        /* Скрываем мусорные кнопки библиотеки */
+        /* Скрываем кнопки и текст самой библиотеки */
         #reader__scan_region, #reader__dashboard, #reader button {
             display: none !important;
         }
 
-        /* Фиолетовый скругленный прицел, сдвинутый чуть выше центра */
-        .camera-aim {
+        /* КОНТЕЙНЕР ДЛЯ ФИОЛЕТОВОГО ПРИЦЕЛА С РАЗРЫВАМИ (Сдвинут выше центра) */
+        .camera-aim-container {
             position: absolute;
-            top: 40%; /* Сдвинули выше (было 50%) */
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
             width: 260px;
             height: 260px;
-            border: 3px solid #8b5cf6; /* Красивый фиолетовый цвет */
-            border-radius: 24px; /* Мягкое скругление углов */
             pointer-events: none;
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
         }
 
-        /* Блок с твоим фото в самом низу экрана сканера */
-        .user-photo-container {
+        /* Создаем фиолетовые уголки с разрывами и скруглением */
+        .purple-corner {
             position: absolute;
-            bottom: 40px; /* Прижали к самому низу */
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            width: 35px;
+            height: 35px;
+            border-color: #8b5cf6; /* Фиолетовый цвет */
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .top-left     { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 24px; }
+        .top-right    { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 24px; }
+        .bottom-left  { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 24px; }
+        .bottom-right { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 24px; }
+
+        /* ПАНЕЛЬ С ТВОИМ ФОТО: На всю ширину экрана в самом низу */
+        .bottom-photo-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
             z-index: 3;
             pointer-events: none;
+            line-height: 0; /* Убирает лишние микро-отступы у картинок */
         }
 
-        .user-avatar {
-            width: 75px;
-            height: 75px;
-            border-radius: 50%;
-            border: 2px solid #8b5cf6; /* Фиолетовый ободок для фото */
-            object-fit: cover;
-            background-color: #222; /* Фон, пока фотка загружается */
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        .user-full-width-photo {
+            width: 100%;
+            height: auto; /* Высота подстраивается под пропорции твоего фото */
+            display: block;
+            object-fit: contain;
         }
 
 
-        /* ОКНО 2: ЭКРАН РЕЗУЛЬТАТА (Отдельное окно после сканирования) */
+        /* ОКНО 2: ЭКРАН ВЫВОДА РЕЗУЛЬТАТА */
         #result-window {
             position: absolute;
             top: 0;
@@ -118,7 +125,7 @@
         #bus-number {
             font-size: 6.5rem;
             font-weight: 900;
-            color: #4ade80; /* Зеленый цвет для готового кода */
+            color: #4ade80;
             line-height: 1;
             margin: 0;
             letter-spacing: -2px;
@@ -147,8 +154,16 @@
 
     <div id="scanner-window">
         <div id="reader"></div>
-        <div class="camera-aim"></div> <div class="user-photo-container">
-            <img src="foto.jpg" alt="Фото" class="user-avatar" onerror="this.style.display='none'; alert('Положи файл foto.jpg в папку с сайтом!');">
+        
+        <div class="camera-aim-container">
+            <div class="purple-corner top-left"></div>
+            <div class="purple-corner top-right"></div>
+            <div class="purple-corner bottom-left"></div>
+            <div class="purple-corner bottom-right"></div>
+        </div>
+        
+        <div class="bottom-photo-panel">
+            <img src="foto.jpg" alt="Нижняя панель" class="user-full-width-photo" onerror="this.style.display='none'; console.log('Добавь картинку foto.jpg в корневую папку.');">
         </div>
     </div>
 
@@ -161,7 +176,7 @@
     <script>
         let html5QrCode;
 
-        // Наша точная математика разбора строк
+        // Фирменная математика очистки ссылок Тулпар
         function extractBusCode(rawUrl) {
             if (!rawUrl.includes("qr.tulpar.kg")) return null;
 
@@ -188,12 +203,12 @@
             if (busCode) {
                 if (navigator.vibrate) navigator.vibrate(150);
 
-                // Выключаем камеру и переключаем окно на результат
+                // Останавливаем стрим камеры и открываем чистое окно результата
                 html5QrCode.stop().then(() => {
                     document.getElementById('bus-number').innerText = busCode;
                     document.getElementById('scanner-window').style.display = 'none';
                     document.getElementById('result-window').style.display = 'flex';
-                }).catch(err => console.error("Ошибка остановки камеры:", err));
+                }).catch(err => console.error("Ошибка при остановке камеры:", err));
             }
         }
 
@@ -206,14 +221,14 @@
         function startCamera() {
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start(
-                { facingMode: { exact: "environment" } }, // Задняя основная камера
+                { facingMode: { exact: "environment" } }, // Использование основной задней камеры смартфона
                 {
                     fps: 15,
                     qrbox: 260
                 },
                 onScanSuccess
             ).catch(err => {
-                console.log("Мягкий запуск камеры...");
+                console.log("Переход на стандартный facingMode...");
                 html5QrCode.start(
                     { facingMode: "environment" },
                     { fps: 15, qrbox: 260 },
