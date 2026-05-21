@@ -2,204 +2,212 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тулпар: Точный Сканер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Тулпар: Полноэкранный сканер</title>
     
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+        * {
+            box-sizing: border-box;
+        }
+
+        body, html {
             margin: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .container {
+            padding: 0;
             width: 100%;
-            max-width: 420px;
-            background-color: #1e293b;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            box-sizing: border-box;
+            height: 100%;
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            color: #fff;
         }
 
-        h1 {
-            font-size: 1.25rem;
-            margin-top: 0;
-            margin-bottom: 8px;
-            color: #38bdf8;
-        }
-
-        p {
-            font-size: 0.85rem;
-            color: #94a3b8;
-            margin-top: 0;
-            margin-bottom: 20px;
+        /* ОКНО 1: ПОЛНОЭКРАННЫЙ СКАНЕР */
+        #scanner-window {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: block; /* Показывается изначально */
         }
 
         #reader {
-            width: 100%;
+            width: 100% !important;
+            height: 100% !important;
             border: none !important;
-            border-radius: 12px;
-            overflow: hidden;
-            background-color: #0f172a;
         }
 
-        /* Кастомизация встроенных кнопки библиотеки */
-        #reader button {
-            background-color: #38bdf8;
-            color: #0f172a;
-            border: none;
-            padding: 12px 24px;
-            font-size: 0.95rem;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            margin: 12px 0;
-            transition: background-color 0.2s;
-        }
-        #reader button:hover {
-            background-color: #7dd3fc;
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
         }
 
-        #result-box {
-            margin-top: 24px;
-            padding: 16px;
-            background-color: #0f172a;
-            border-radius: 12px;
-            border: 1px solid #334155;
+        /* Скрываем все стандартные кнопки и текст самой библиотеки */
+        #reader__scan_region, #reader__dashboard, #reader button {
+            display: none !important;
+        }
+
+        /* Прозрачный прицел по центру экрана для удобства */
+        .camera-aim {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            pointer-events: none;
+        }
+
+
+        /* ОКНО 2: ЭКРАН РЕЗУЛЬТАТА (Изначально скрыт) */
+        #result-window {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            background-color: #0f172a; /* Приятный глубокий темный цвет */
+            display: none; /* Скрыт, пока нет успешного сканирования */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
         }
 
         .label {
-            font-size: 0.8rem;
-            color: #64748b;
+            font-size: 1.1rem;
+            color: #94a3b8;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
-            font-weight: 600;
+            letter-spacing: 2px;
+            font-weight: 500;
+            margin-bottom: 10px;
         }
 
         #bus-number {
-            font-size: 4.5rem;
+            font-size: 6.5rem;
             font-weight: 900;
-            color: #4ade80;
-            margin: 8px 0;
+            color: #4ade80; /* Яркий зеленый номер */
             line-height: 1;
-            letter-spacing: -1px;
-            text-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+            margin: 0;
+            letter-spacing: -2px;
+            text-shadow: 0 0 30px rgba(74, 222, 128, 0.25);
         }
 
-        #debug-info {
-            font-size: 0.75rem;
-            color: #475569;
-            word-break: break-all;
-            margin-top: 12px;
-            border-top: 1px dashed #334155;
-            padding-top: 8px;
+        /* Кнопка «Назад», если захочется отсканировать другой автобус */
+        .reset-btn {
+            margin-top: 50px;
+            background-color: #334155;
+            color: #f8fafc;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .reset-btn:active {
+            background-color: #475569;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Тулпар • Сканер кода</h1>
-        <p>Автоматически извлекает бортовой номер автобуса</p>
-        
+    <div id="scanner-window">
         <div id="reader"></div>
+        <div class="camera-aim"></div> </div>
 
-        <div id="result-box">
-            <div class="label">Код транспорта</div>
-            <div id="bus-number">---</div>
-            <div id="debug-info">Ожидание сканирования...</div>
-        </div>
+    <div id="result-window">
+        <div class="label">Код автобуса</div>
+        <div id="bus-number">---</div>
+        <button class="reset-btn" onclick="resetScanner()">Сканировать снова</button>
     </div>
 
     <script>
-        // Алгоритм разбора ссылки на основе реальных данных Тулпар / PayQR
-        function extractBusCode(rawUrl) {
-            // Если это не ссылка Тулпара, прерываем работу
-            if (!rawUrl.includes("qr.tulpar.kg")) {
-                return null;
-            }
+        let html5QrCode;
 
-            // Находим всё, что идет строго после подстроки "qr.tulpar.kg"
+        // Логика разбора ссылки Тулпар
+        function extractBusCode(rawUrl) {
+            if (!rawUrl.includes("qr.tulpar.kg")) return null;
+
             const parts = rawUrl.split("qr.tulpar.kg");
             if (parts.length < 2) return null;
 
-            const dataAfterDomain = parts[1]; // Получаем строчку типа: "10032971120212130..."
-
-            // Определяем, какой префикс длины используется в этой наклейке
+            const dataAfterDomain = parts[1];
             let prefix = "";
             if (dataAfterDomain.startsWith("1003")) prefix = "1003";
             else if (dataAfterDomain.startsWith("1004")) prefix = "1004";
 
             if (!prefix) return null;
 
-            // Отрезаем этот технический префикс
-            const withoutPrefix = dataAfterDomain.substring(prefix.length); // Остаётся: "29711202121..." или "3951202121..."
-
-            // Ищем индекс начала неизменяемого системного хвоста "1202121"
+            const withoutPrefix = dataAfterDomain.substring(prefix.length);
             const tailIndex = withoutPrefix.indexOf("1202121");
             if (tailIndex === -1) return null;
 
-            // Забираем всё, что находится ровно МЕЖДУ префиксом и системным хвостом
-            const busCode = withoutPrefix.substring(0, tailIndex);
-
-            return busCode;
+            return withoutPrefix.substring(0, tailIndex);
         }
 
         function onScanSuccess(decodedText) {
-            const debugDiv = document.getElementById('debug-info');
-            const resultDiv = document.getElementById('bus-number');
-
-            debugDiv.innerText = "QR обнаружен. Расшифровка...";
-
-            // Применяем логику очистки
             const busCode = extractBusCode(decodedText);
 
             if (busCode) {
-                resultDiv.innerText = busCode; // Выводим чистые 395, 1515, 2971 и т.д.
-                debugDiv.innerText = "Успешно распознано!";
-                
-                // Легкий виброотклик смартфона
-                if (navigator.vibrate) {
-                    navigator.vibrate(150);
-                }
-            } else {
-                resultDiv.innerText = "???";
-                debugDiv.innerText = "Ошибка: Неверный формат данных внутри QR.";
+                // 1. Телефон коротко вибрирует
+                if (navigator.vibrate) navigator.vibrate(150);
+
+                // 2. Останавливаем камеру, чтобы не тратить батарею
+                html5QrCode.stop().then(() => {
+                    
+                    // 3. Подставляем номер автобуса в окно результата
+                    document.getElementById('bus-number').innerText = busCode;
+                    
+                    // 4. Прячем окно камеры и показываем окно с номером
+                    document.getElementById('scanner-window').style.display = 'none';
+                    document.getElementById('result-window').style.display = 'flex';
+                    
+                }).catch(err => console.error("Ошибка остановки камеры:", err));
             }
         }
 
-        function onScanFailure(error) {
-            // Пустой блок, чтобы библиотека не спамила в консоль каждую миллисекунду
+        // Функция для кнопки «Сканировать снова»
+        function resetScanner() {
+            // Переключаем окна обратно
+            document.getElementById('result-window').style.display = 'none';
+            document.getElementById('scanner-window').style.display = 'block';
+            
+            // Запускаем камеру заново
+            startCamera();
         }
 
-        // Настройка сканера
-        let html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", 
-            { 
-                fps: 15, // Скорость обработки кадров
-                qrbox: { width: 260, height: 260 }, // Рамка прицела
-                // Принудительно заставляем браузер брать заднюю 1х камеру без лишних вопросов
-                videoConstraints: {
-                    facingMode: { exact: "environment" }
+        // Функция запуска камеры
+        function startCamera() {
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: { exact: "environment" } }, // Жестко задняя основная камера
+                {
+                    fps: 15,
+                    qrbox: 250 // Область сканирования внутри прицела
                 },
-                rememberLastUsedCamera: true
-            },
-            /* verbose= */ false
-        );
-        
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                onScanSuccess
+            ).catch(err => {
+                console.log("Режим 'exact' не поддерживается, мягкий запуск камеры...");
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 15, qrbox: 250 },
+                    onScanSuccess
+                );
+            });
+        }
+
+        // Запуск при открытии страницы
+        window.addEventListener('load', startCamera);
     </script>
 </body>
 </html>
