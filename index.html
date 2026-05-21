@@ -46,12 +46,18 @@
             object-fit: cover !important;
         }
 
-        /* Скрываем кнопки и текст самой библиотеки */
-        #reader__scan_region, #reader__dashboard, #reader button {
+        /* ЖЕСТКО ВЫРЕЗАЕМ СТАНДАРТНЫЙ БЕЛО-СЕРЫЙ ПРИЦЕЛ БИБЛИОТЕКИ И ЕЕ КНОПКИ */
+        #reader__scan_region, 
+        #reader__scan_region div,
+        #reader__dashboard, 
+        #reader button {
             display: none !important;
+            border: none !important;
+            background: none !important;
+            box-shadow: none !important;
         }
 
-        /* КОНТЕЙНЕР ДЛЯ ФИОЛЕТОВОГО ПРИЦЕЛА С РАЗРЫВАМИ (Сдвинут выше центра) */
+        /* КОНТЕЙНЕР ДЛЯ НАШЕГО ФИОЛЕТОВОГО ПРИЦЕЛА С РАЗРЫВАМИ (Сдвинут выше центра) */
         .camera-aim-container {
             position: absolute;
             top: 40%;
@@ -60,6 +66,7 @@
             width: 260px;
             height: 260px;
             pointer-events: none;
+            z-index: 5; /* Поверх видеопотока */
         }
 
         /* Создаем фиолетовые уголки с разрывами и скруглением */
@@ -83,14 +90,14 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            z-index: 3;
+            z-index: 6;
             pointer-events: none;
-            line-height: 0; /* Убирает лишние микро-отступы у картинок */
+            line-height: 0;
         }
 
         .user-full-width-photo {
             width: 100%;
-            height: auto; /* Высота подстраивается под пропорции твоего фото */
+            height: auto;
             display: block;
             object-fit: contain;
         }
@@ -103,7 +110,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 2;
+            z-index: 10;
             background-color: #0f172a;
             display: none; 
             flex-direction: column;
@@ -163,7 +170,7 @@
         </div>
         
         <div class="bottom-photo-panel">
-            <img src="foto.jpg" alt="Нижняя панель" class="user-full-width-photo" onerror="this.style.display='none'; console.log('Добавь картинку foto.jpg в корневую папку.');">
+            <img src="foto.jpg" alt="Нижняя панель" class="user-full-width-photo" onerror="this.style.display='none';">
         </div>
     </div>
 
@@ -176,7 +183,6 @@
     <script>
         let html5QrCode;
 
-        // Фирменная математика очистки ссылок Тулпар
         function extractBusCode(rawUrl) {
             if (!rawUrl.includes("qr.tulpar.kg")) return null;
 
@@ -203,7 +209,6 @@
             if (busCode) {
                 if (navigator.vibrate) navigator.vibrate(150);
 
-                // Останавливаем стрим камеры и открываем чистое окно результата
                 html5QrCode.stop().then(() => {
                     document.getElementById('bus-number').innerText = busCode;
                     document.getElementById('scanner-window').style.display = 'none';
@@ -221,14 +226,13 @@
         function startCamera() {
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start(
-                { facingMode: { exact: "environment" } }, // Использование основной задней камеры смартфона
+                { facingMode: { exact: "environment" } }, 
                 {
                     fps: 15,
                     qrbox: 260
                 },
                 onScanSuccess
             ).catch(err => {
-                console.log("Переход на стандартный facingMode...");
                 html5QrCode.start(
                     { facingMode: "environment" },
                     { fps: 15, qrbox: 260 },
